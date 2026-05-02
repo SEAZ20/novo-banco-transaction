@@ -1,4 +1,4 @@
-package com.novobanco.transaction.domain.port.output;
+package com.novobanco.transaction.application.port.output;
 
 import com.novobanco.transaction.domain.model.PageRequest;
 import com.novobanco.transaction.domain.model.PagedResult;

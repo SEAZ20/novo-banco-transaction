@@ -1,7 +1,7 @@
-package com.novobanco.transaction.domain.port.input;
+package com.novobanco.transaction.application.port.input;
 
 import com.novobanco.transaction.domain.model.Account;
-import com.novobanco.transaction.domain.port.input.command.CreateAccountCommand;
+import com.novobanco.transaction.application.port.input.command.CreateAccountCommand;
 
 public interface CreateAccountUseCase {
     Account createAccount(CreateAccountCommand command);
