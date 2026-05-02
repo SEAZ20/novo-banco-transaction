@@ -3,14 +3,12 @@ package com.novobanco.transaction.domain.model;
 import com.novobanco.transaction.domain.exception.InactiveAccountException;
 import com.novobanco.transaction.domain.exception.InsufficientFundsException;
 import com.novobanco.transaction.domain.exception.InvalidAmountException;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 
 @Getter
-@AllArgsConstructor
 public class Account {
 
     private Long id;
@@ -23,6 +21,19 @@ public class Account {
     private final LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    public Account(Long id, String accountNumber, Long customerId, AccountType type,
+                   String currency, Money balance, AccountStatus status,
+                   LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.accountNumber = accountNumber;
+        this.customerId = customerId;
+        this.type = type;
+        this.currency = currency;
+        this.balance = balance;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 
     public static Account create(String accountNumber, Long customerId, AccountType type) {
         LocalDateTime now = LocalDateTime.now();
