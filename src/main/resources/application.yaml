@@ -1,3 +1,40 @@
 spring:
   application:
-    name: transaction
+    name: novo-banco-transaction
+
+  datasource:
+    url: ${DB_URL:jdbc:oracle:thin:@localhost:1521/XEPDB1}
+    username: ${DB_USERNAME:novobanco}
+    password: ${DB_PASSWORD:Novobanco123#}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.OracleDialect
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    com.novobanco: INFO
+    org.springframework.web: INFO
+    liquibase: INFO

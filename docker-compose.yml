@@ -1,0 +1,22 @@
+services:
+  oracle-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: novobanco-oracle
+    environment:
+      ORACLE_PASSWORD: Oracle123#
+      APP_USER: novobanco
+      APP_USER_PASSWORD: Novobanco123#
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+      start_period: 180s
+
+volumes:
+  oracle-data:
+    driver: local

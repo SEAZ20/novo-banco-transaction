@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- =====================================================================
+         CHANGESET 001: Esquema inicial — CUSTOMERS, ACCOUNTS, TRANSACTIONS
+         Autor: silvio.alcivar
+         DBMS: Oracle 21c XE
+         ===================================================================== -->
+
+    <changeSet id="001-customers" author="silvio.alcivar" dbms="oracle">
+        <createTable tableName="CUSTOMERS" remarks="Clientes del banco">
+            <column name="ID" type="NUMBER" autoIncrement="true" generationType="ALWAYS">
+                <constraints primaryKey="true" primaryKeyName="PK_CUSTOMERS" nullable="false"/>
+            </column>
+            <column name="NAME" type="VARCHAR2(200 CHAR)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="EMAIL" type="VARCHAR2(150 CHAR)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_CUSTOMERS_EMAIL"/>
+            </column>
+            <column name="DOCUMENT_NUMBER" type="VARCHAR2(50 CHAR)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_CUSTOMERS_DOCUMENT_NUMBER"/>
+            </column>
+            <column name="CREATED_AT" type="TIMESTAMP" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="001-accounts" author="silvio.alcivar" dbms="oracle">
+        <createTable tableName="ACCOUNTS" remarks="Cuentas bancarias (ahorros o corriente)">
+            <column name="ID" type="NUMBER" autoIncrement="true" generationType="ALWAYS">
+                <constraints primaryKey="true" primaryKeyName="PK_ACCOUNTS" nullable="false"/>
+            </column>
+            <column name="ACCOUNT_NUMBER" type="VARCHAR2(20 CHAR)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_ACCOUNTS_ACCOUNT_NUMBER"/>
+            </column>
+            <column name="CUSTOMER_ID" type="NUMBER">
+                <constraints nullable="false"
+                             foreignKeyName="FK_ACCOUNTS_CUSTOMER_ID"
+                             references="CUSTOMERS(ID)"/>
+            </column>
+            <column name="TYPE" type="VARCHAR2(20 CHAR)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CURRENCY" type="VARCHAR2(3 CHAR)" defaultValue="USD">
+                <constraints nullable="false"/>
+            </column>
+            <column name="BALANCE" type="NUMBER(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STATUS" type="VARCHAR2(20 CHAR)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CREATED_AT" type="TIMESTAMP" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UPDATED_AT" type="TIMESTAMP" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- CHECK CONSTRAINTS — Liquibase los aplica como SQL nativo -->
+        <sql dbms="oracle">
+            ALTER TABLE ACCOUNTS ADD CONSTRAINT CHK_ACCOUNTS_BALANCE CHECK (BALANCE >= 0)
+        </sql>
+        <sql dbms="oracle">
+            ALTER TABLE ACCOUNTS ADD CONSTRAINT CHK_ACCOUNTS_TYPE CHECK (TYPE IN ('SAVINGS', 'CHECKING'))
+        </sql>
+        <sql dbms="oracle">
+            ALTER TABLE ACCOUNTS ADD CONSTRAINT CHK_ACCOUNTS_STATUS CHECK (STATUS IN ('ACTIVE', 'BLOCKED', 'CLOSED'))
+        </sql>
+        <sql dbms="oracle">
+            ALTER TABLE ACCOUNTS ADD CONSTRAINT CHK_ACCOUNTS_CURRENCY CHECK (CURRENCY = 'USD')
+        </sql>
+
+        <createIndex tableName="ACCOUNTS" indexName="IDX_ACCOUNTS_CUSTOMER_ID">
+            <column name="CUSTOMER_ID"/>
+        </createIndex>
+        <createIndex tableName="ACCOUNTS" indexName="IDX_ACCOUNTS_STATUS">
+            <column name="STATUS"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="001-transactions" author="silvio.alcivar" dbms="oracle">
+        <createTable tableName="TRANSACTIONS" remarks="Registro inmutable de movimientos financieros">
+            <column name="ID" type="NUMBER" autoIncrement="true" generationType="ALWAYS">
+                <constraints primaryKey="true" primaryKeyName="PK_TRANSACTIONS" nullable="false"/>
+            </column>
+            <column name="REFERENCE" type="VARCHAR2(50 CHAR)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_TRANSACTIONS_REFERENCE"/>
+            </column>
+            <column name="ACCOUNT_ID" type="NUMBER">
+                <constraints nullable="false"
+                             foreignKeyName="FK_TRANSACTIONS_ACCOUNT_ID"
+                             references="ACCOUNTS(ID)"/>
+            </column>
+            <column name="RELATED_ACCOUNT_ID" type="NUMBER">
+                <constraints nullable="true"
+                             foreignKeyName="FK_TRANSACTIONS_RELATED_ACCOUNT"
+                             references="ACCOUNTS(ID)"/>
+            </column>
+            <column name="TYPE" type="VARCHAR2(30 CHAR)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AMOUNT" type="NUMBER(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="BALANCE_AFTER" type="NUMBER(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STATUS" type="VARCHAR2(20 CHAR)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DESCRIPTION" type="VARCHAR2(500 CHAR)"/>
+            <column name="CREATED_AT" type="TIMESTAMP" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql dbms="oracle">
+            ALTER TABLE TRANSACTIONS ADD CONSTRAINT CHK_TRANSACTIONS_AMOUNT CHECK (AMOUNT > 0)
+        </sql>
+        <sql dbms="oracle">
+            ALTER TABLE TRANSACTIONS ADD CONSTRAINT CHK_TRANSACTIONS_BALANCE_AFTER CHECK (BALANCE_AFTER >= 0)
+        </sql>
+        <sql dbms="oracle">
+            ALTER TABLE TRANSACTIONS ADD CONSTRAINT CHK_TRANSACTIONS_TYPE
+            CHECK (TYPE IN ('DEPOSIT', 'WITHDRAWAL', 'TRANSFER_DEBIT', 'TRANSFER_CREDIT'))
+        </sql>
+        <sql dbms="oracle">
+            ALTER TABLE TRANSACTIONS ADD CONSTRAINT CHK_TRANSACTIONS_STATUS
+            CHECK (STATUS IN ('SUCCESS', 'FAILED', 'REVERSED'))
+        </sql>
+
+        <!-- Q2: historial paginado — account_id + created_at DESC -->
+        <createIndex tableName="TRANSACTIONS" indexName="IDX_TRANSACTIONS_ACCOUNT_CREATED_AT">
+            <column name="ACCOUNT_ID"/>
+            <column name="CREATED_AT" descending="true"/>
+        </createIndex>
+        <!-- Q3: transferencias salientes por período -->
+        <createIndex tableName="TRANSACTIONS" indexName="IDX_TRANSACTIONS_ACCOUNT_TYPE_DATE">
+            <column name="ACCOUNT_ID"/>
+            <column name="TYPE"/>
+            <column name="CREATED_AT"/>
+        </createIndex>
+        <!-- Navegación desde cuenta relacionada -->
+        <createIndex tableName="TRANSACTIONS" indexName="IDX_TRANSACTIONS_RELATED_ACCOUNT_ID">
+            <column name="RELATED_ACCOUNT_ID"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
