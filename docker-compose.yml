@@ -1,4 +1,5 @@
 services:
+
   oracle-db:
     image: gvenzl/oracle-xe:21-slim
     container_name: novobanco-oracle
@@ -16,6 +17,31 @@ services:
       timeout: 20s
       retries: 10
       start_period: 180s
+    networks:
+      - novobanco-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: novobanco-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:oracle:thin:@oracle-db:1521/XEPDB1
+      DB_USERNAME: novobanco
+      DB_PASSWORD: Novobanco123#
+      SERVER_PORT: 8080
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    networks:
+      - novobanco-net
+    restart: on-failure
+
+networks:
+  novobanco-net:
+    driver: bridge
 
 volumes:
   oracle-data:

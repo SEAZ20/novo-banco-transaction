@@ -16,7 +16,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     database-platform: org.hibernate.dialect.OracleDialect
     show-sql: false
     open-in-view: false
@@ -26,10 +26,6 @@ spring:
         jdbc:
           time_zone: UTC
 
-  liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.xml
-    enabled: true
-
 server:
   port: ${SERVER_PORT:8080}
 
@@ -37,4 +33,3 @@ logging:
   level:
     com.novobanco: INFO
     org.springframework.web: INFO
-    liquibase: INFO

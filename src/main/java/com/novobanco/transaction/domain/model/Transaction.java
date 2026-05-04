@@ -70,6 +70,31 @@ public class Transaction {
     }
 
     // =========================================================================
+    // Factory methods para transacciones fallidas (FAILED)
+    // =========================================================================
+
+    public static Transaction ofFailedDeposit(String reference, Long accountId,
+                                              Money amount, Money balanceBefore, String description) {
+        return new Transaction(null, reference, accountId, null,
+                TransactionType.DEPOSIT, amount, balanceBefore,
+                TransactionStatus.FAILED, description, LocalDateTime.now());
+    }
+
+    public static Transaction ofFailedWithdrawal(String reference, Long accountId,
+                                                 Money amount, Money balanceBefore, String description) {
+        return new Transaction(null, reference, accountId, null,
+                TransactionType.WITHDRAWAL, amount, balanceBefore,
+                TransactionStatus.FAILED, description, LocalDateTime.now());
+    }
+
+    public static Transaction ofFailedTransferDebit(String reference, Long accountId, Long relatedAccountId,
+                                                    Money amount, Money balanceBefore, String description) {
+        return new Transaction(null, reference, accountId, relatedAccountId,
+                TransactionType.TRANSFER_DEBIT, amount, balanceBefore,
+                TransactionStatus.FAILED, description, LocalDateTime.now());
+    }
+
+    // =========================================================================
     // Cambios de estado permitidos
     // =========================================================================
 

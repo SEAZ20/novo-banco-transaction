@@ -40,7 +40,7 @@ public class TransactionController {
     @ResponseStatus(HttpStatus.CREATED)
     public TransactionResponse deposit(@PathVariable String accountNumber,
                                        @Valid @RequestBody DepositRequest request) {
-        var command = new DepositCommand(accountNumber, request.amount(), request.description(), request.reference());
+        DepositCommand command = new DepositCommand(accountNumber, request.amount(), request.description(), request.reference());
         return TransactionResponse.from(depositUseCase.deposit(command));
     }
 
@@ -48,14 +48,14 @@ public class TransactionController {
     @ResponseStatus(HttpStatus.CREATED)
     public TransactionResponse withdraw(@PathVariable String accountNumber,
                                         @Valid @RequestBody WithdrawRequest request) {
-        var command = new WithdrawCommand(accountNumber, request.amount(), request.description(), request.reference());
+        WithdrawCommand command = new WithdrawCommand(accountNumber, request.amount(), request.description(), request.reference());
         return TransactionResponse.from(withdrawUseCase.withdraw(command));
     }
 
     @PostMapping("/transfers")
     @ResponseStatus(HttpStatus.CREATED)
     public TransferResponse transfer(@Valid @RequestBody TransferRequest request) {
-        var command = new TransferCommand(
+        TransferCommand command = new TransferCommand(
                 request.sourceAccountNumber(), request.targetAccountNumber(),
                 request.amount(), request.description(), request.reference()
         );

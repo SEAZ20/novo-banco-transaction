@@ -5,7 +5,10 @@ import com.novobanco.transaction.domain.exception.CustomerNotFoundException;
 import com.novobanco.transaction.domain.model.Account;
 import com.novobanco.transaction.application.port.input.CreateAccountUseCase;
 import com.novobanco.transaction.application.port.input.GetAccountUseCase;
+import com.novobanco.transaction.application.port.input.UpdateAccountStatusUseCase;
 import com.novobanco.transaction.application.port.input.command.CreateAccountCommand;
+import com.novobanco.transaction.application.port.input.command.UpdateAccountStatusCommand;
+import com.novobanco.transaction.domain.model.AccountStatus;
 import com.novobanco.transaction.application.port.output.AccountOutputPort;
 import com.novobanco.transaction.application.port.output.CustomerOutputPort;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +20,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class AccountService implements CreateAccountUseCase, GetAccountUseCase {
+public class AccountService implements CreateAccountUseCase, GetAccountUseCase, UpdateAccountStatusUseCase {
 
     private final AccountOutputPort accountOutputPort;
     private final CustomerOutputPort customerOutputPort;
@@ -48,9 +51,23 @@ public class AccountService implements CreateAccountUseCase, GetAccountUseCase {
         return accountOutputPort.findByCustomerId(customerId);
     }
 
-    // En producción: output port respaldado por una secuencia Oracle (SEQ_ACCOUNT_NUMBER)
+    @Override
+    @Transactional
+    public Account updateStatus(UpdateAccountStatusCommand command) {
+        Account account = accountOutputPort.findByAccountNumber(command.accountNumber())
+                .orElseThrow(() -> new AccountNotFoundException(command.accountNumber()));
+
+        if (command.status() == AccountStatus.BLOCKED) {
+            account.block();
+        } else if (command.status() == AccountStatus.CLOSED) {
+            account.close();
+        }
+
+        return accountOutputPort.save(account);
+    }
+
     private String generateAccountNumber() {
         long number = Math.abs(UUID.randomUUID().getMostSignificantBits() % 10_000_000_000L);
-        return "NB" + String.format("%010d", number);
+        return String.format("%010d", number);
     }
 }

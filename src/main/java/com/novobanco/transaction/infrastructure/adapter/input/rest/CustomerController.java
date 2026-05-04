@@ -23,7 +23,7 @@ public class CustomerController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerResponse create(@Valid @RequestBody CreateCustomerRequest request) {
-        var command = new CreateCustomerCommand(request.name(), request.email(), request.documentNumber());
+        CreateCustomerCommand command = new CreateCustomerCommand(request.name(), request.email(), request.documentNumber());
         return CustomerResponse.from(createCustomerUseCase.createCustomer(command));
     }
 }

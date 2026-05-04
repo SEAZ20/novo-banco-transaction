@@ -5,6 +5,7 @@ import com.novobanco.transaction.application.port.output.AccountOutputPort;
 import com.novobanco.transaction.application.port.output.TransactionOutputPort;
 import com.novobanco.transaction.domain.exception.AccountNotFoundException;
 import com.novobanco.transaction.domain.exception.DuplicateTransactionException;
+import com.novobanco.transaction.domain.exception.InactiveAccountException;
 import com.novobanco.transaction.domain.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,6 +30,7 @@ class DepositServiceTest {
 
     @Mock AccountOutputPort accountOutputPort;
     @Mock TransactionOutputPort transactionOutputPort;
+    @Mock FailedTransactionRecorder failedTransactionRecorder;
 
     @InjectMocks
     DepositService service;
@@ -42,13 +45,18 @@ class DepositServiceTest {
                 Money.ZERO, AccountStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
     }
 
+    private Account blockedAccount() {
+        return new Account(1L, ACCOUNT_NUMBER, 10L, AccountType.SAVINGS, "USD",
+                Money.ZERO, AccountStatus.BLOCKED, LocalDateTime.now(), LocalDateTime.now());
+    }
+
     private Transaction savedTransaction() {
         return Transaction.ofDeposit(REFERENCE, 1L, Money.of("500.00"), Money.of("500.00"), "Depósito");
     }
 
     @Test
     void deposit_success_returnsTransaction() {
-        given(transactionOutputPort.existsByReference(REFERENCE)).willReturn(false);
+        given(transactionOutputPort.findByReference(REFERENCE)).willReturn(Optional.empty());
         given(accountOutputPort.findByAccountNumberForUpdate(ACCOUNT_NUMBER))
                 .willReturn(Optional.of(activeAccount()));
         given(accountOutputPort.save(any(Account.class))).willAnswer(inv -> inv.getArgument(0));
@@ -65,7 +73,7 @@ class DepositServiceTest {
     @Test
     void deposit_balanceUpdatedCorrectly() {
         Account account = activeAccount();
-        given(transactionOutputPort.existsByReference(REFERENCE)).willReturn(false);
+        given(transactionOutputPort.findByReference(REFERENCE)).willReturn(Optional.empty());
         given(accountOutputPort.findByAccountNumberForUpdate(ACCOUNT_NUMBER))
                 .willReturn(Optional.of(account));
         given(accountOutputPort.save(any())).willAnswer(inv -> inv.getArgument(0));
@@ -77,8 +85,22 @@ class DepositServiceTest {
     }
 
     @Test
-    void deposit_duplicateReference_throwsDuplicateTransactionException() {
-        given(transactionOutputPort.existsByReference(REFERENCE)).willReturn(true);
+    void deposit_duplicateSuccessReference_returnsExistingTransaction() {
+        Transaction existing = savedTransaction();
+        given(transactionOutputPort.findByReference(REFERENCE)).willReturn(Optional.of(existing));
+
+        Transaction result = service.deposit(COMMAND);
+
+        assertThat(result).isSameAs(existing);
+        verify(accountOutputPort, never()).findByAccountNumberForUpdate(any());
+        verify(transactionOutputPort, never()).save(any());
+    }
+
+    @Test
+    void deposit_duplicateFailedReference_throwsDuplicateTransactionException() {
+        Transaction failed = Transaction.ofFailedDeposit(REFERENCE, 1L,
+                Money.of("500.00"), Money.ZERO, "Depósito");
+        given(transactionOutputPort.findByReference(REFERENCE)).willReturn(Optional.of(failed));
 
         assertThatExceptionOfType(DuplicateTransactionException.class)
                 .isThrownBy(() -> service.deposit(COMMAND));
@@ -88,11 +110,26 @@ class DepositServiceTest {
 
     @Test
     void deposit_accountNotFound_throwsAccountNotFoundException() {
-        given(transactionOutputPort.existsByReference(REFERENCE)).willReturn(false);
+        given(transactionOutputPort.findByReference(REFERENCE)).willReturn(Optional.empty());
         given(accountOutputPort.findByAccountNumberForUpdate(ACCOUNT_NUMBER))
                 .willReturn(Optional.empty());
 
         assertThatExceptionOfType(AccountNotFoundException.class)
                 .isThrownBy(() -> service.deposit(COMMAND));
+    }
+
+    @Test
+    void deposit_inactiveAccount_recordsFailedTransactionAndThrows() {
+        given(transactionOutputPort.findByReference(REFERENCE)).willReturn(Optional.empty());
+        given(accountOutputPort.findByAccountNumberForUpdate(ACCOUNT_NUMBER))
+                .willReturn(Optional.of(blockedAccount()));
+
+        assertThatExceptionOfType(InactiveAccountException.class)
+                .isThrownBy(() -> service.deposit(COMMAND));
+
+        verify(failedTransactionRecorder).record(argThat(t ->
+                t.getStatus() == TransactionStatus.FAILED && t.getType() == TransactionType.DEPOSIT));
+        verify(transactionOutputPort, never()).save(any());
+        verify(accountOutputPort, never()).save(any());
     }
 }

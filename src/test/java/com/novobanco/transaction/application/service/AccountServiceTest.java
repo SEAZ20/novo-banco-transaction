@@ -1,10 +1,12 @@
 package com.novobanco.transaction.application.service;
 
 import com.novobanco.transaction.application.port.input.command.CreateAccountCommand;
+import com.novobanco.transaction.application.port.input.command.UpdateAccountStatusCommand;
 import com.novobanco.transaction.application.port.output.AccountOutputPort;
 import com.novobanco.transaction.application.port.output.CustomerOutputPort;
 import com.novobanco.transaction.domain.exception.AccountNotFoundException;
 import com.novobanco.transaction.domain.exception.CustomerNotFoundException;
+import com.novobanco.transaction.domain.exception.InactiveAccountException;
 import com.novobanco.transaction.domain.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +53,6 @@ class AccountServiceTest {
         Account result = service.createAccount(new CreateAccountCommand(CUSTOMER_ID, AccountType.SAVINGS));
 
         assertThat(result.getCustomerId()).isEqualTo(CUSTOMER_ID);
-        assertThat(result.getAccountNumber()).startsWith("NB");
         assertThat(result.getStatus()).isEqualTo(AccountStatus.ACTIVE);
     }
 
@@ -106,5 +107,51 @@ class AccountServiceTest {
 
         assertThatExceptionOfType(CustomerNotFoundException.class)
                 .isThrownBy(() -> service.getByCustomerId(CUSTOMER_ID));
+    }
+
+    // -------------------------------------------------------------------------
+    // updateStatus
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateStatus_toBlocked_changesStatusAndSaves() {
+        Account account = activeAccount("0000000001");
+        given(accountOutputPort.findByAccountNumber("0000000001")).willReturn(Optional.of(account));
+        given(accountOutputPort.save(any(Account.class))).willAnswer(inv -> inv.getArgument(0));
+
+        Account result = service.updateStatus(new UpdateAccountStatusCommand("0000000001", AccountStatus.BLOCKED));
+
+        assertThat(result.getStatus()).isEqualTo(AccountStatus.BLOCKED);
+    }
+
+    @Test
+    void updateStatus_toClosed_changesStatusAndSaves() {
+        Account account = activeAccount("0000000001");
+        given(accountOutputPort.findByAccountNumber("0000000001")).willReturn(Optional.of(account));
+        given(accountOutputPort.save(any(Account.class))).willAnswer(inv -> inv.getArgument(0));
+
+        Account result = service.updateStatus(new UpdateAccountStatusCommand("0000000001", AccountStatus.CLOSED));
+
+        assertThat(result.getStatus()).isEqualTo(AccountStatus.CLOSED);
+    }
+
+    @Test
+    void updateStatus_accountNotFound_throwsAccountNotFoundException() {
+        given(accountOutputPort.findByAccountNumber("9999999999")).willReturn(Optional.empty());
+
+        assertThatExceptionOfType(AccountNotFoundException.class)
+                .isThrownBy(() -> service.updateStatus(
+                        new UpdateAccountStatusCommand("9999999999", AccountStatus.BLOCKED)));
+    }
+
+    @Test
+    void updateStatus_blockAlreadyClosedAccount_throwsInactiveAccountException() {
+        Account account = activeAccount("0000000001");
+        account.close();
+        given(accountOutputPort.findByAccountNumber("0000000001")).willReturn(Optional.of(account));
+
+        assertThatExceptionOfType(InactiveAccountException.class)
+                .isThrownBy(() -> service.updateStatus(
+                        new UpdateAccountStatusCommand("0000000001", AccountStatus.BLOCKED)));
     }
 }

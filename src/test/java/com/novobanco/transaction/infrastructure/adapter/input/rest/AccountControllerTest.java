@@ -2,10 +2,14 @@ package com.novobanco.transaction.infrastructure.adapter.input.rest;
 
 import com.novobanco.transaction.application.port.input.CreateAccountUseCase;
 import com.novobanco.transaction.application.port.input.GetAccountUseCase;
+import com.novobanco.transaction.application.port.input.UpdateAccountStatusUseCase;
 import com.novobanco.transaction.application.port.input.command.CreateAccountCommand;
+import com.novobanco.transaction.application.port.input.command.UpdateAccountStatusCommand;
 import com.novobanco.transaction.domain.exception.AccountNotFoundException;
 import com.novobanco.transaction.domain.exception.CustomerNotFoundException;
+import com.novobanco.transaction.domain.exception.InactiveAccountException;
 import com.novobanco.transaction.domain.model.*;
+import com.novobanco.transaction.infrastructure.adapter.input.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +26,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +36,7 @@ class AccountControllerTest {
 
     @Mock CreateAccountUseCase createAccountUseCase;
     @Mock GetAccountUseCase getAccountUseCase;
+    @Mock UpdateAccountStatusUseCase updateAccountStatusUseCase;
 
     @InjectMocks AccountController controller;
 
@@ -108,5 +114,63 @@ class AccountControllerTest {
         mockMvc.perform(get("/api/v1/accounts/customer/10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    // -------------------------------------------------------------------------
+    // PATCH /{accountNumber}/status
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateStatus_toBlocked_returns200() throws Exception {
+        Account blocked = new Account(1L, "0000000001", 10L, AccountType.SAVINGS, "USD",
+                Money.ZERO, AccountStatus.BLOCKED, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        given(updateAccountStatusUseCase.updateStatus(any(UpdateAccountStatusCommand.class))).willReturn(blocked);
+
+        mockMvc.perform(patch("/api/v1/accounts/0000000001/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"BLOCKED"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BLOCKED"));
+    }
+
+    @Test
+    void updateStatus_toClosed_returns200() throws Exception {
+        Account closed = new Account(1L, "0000000001", 10L, AccountType.SAVINGS, "USD",
+                Money.ZERO, AccountStatus.CLOSED, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        given(updateAccountStatusUseCase.updateStatus(any(UpdateAccountStatusCommand.class))).willReturn(closed);
+
+        mockMvc.perform(patch("/api/v1/accounts/0000000001/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"CLOSED"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
+    }
+
+    @Test
+    void updateStatus_blockClosedAccount_returns422() throws Exception {
+        given(updateAccountStatusUseCase.updateStatus(any()))
+                .willThrow(new InactiveAccountException("0000000001", AccountStatus.CLOSED));
+
+        mockMvc.perform(patch("/api/v1/accounts/0000000001/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"BLOCKED"}
+                                """))
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.status").value(422));
+    }
+
+    @Test
+    void updateStatus_nullStatus_returns400() throws Exception {
+        mockMvc.perform(patch("/api/v1/accounts/0000000001/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":null}
+                                """))
+                .andExpect(status().isBadRequest());
     }
 }

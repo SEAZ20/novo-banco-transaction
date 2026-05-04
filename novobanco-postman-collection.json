@@ -1,0 +1,1154 @@
+{
+  "info": {
+    "name": "NovoBanco — Transaction API",
+    "_postman_id": "novobanco-transaction-api-v1",
+    "description": "Colección completa para validar el microservicio de Gestión de Cuentas y Transacciones.\n\nFlujo recomendado: ejecutar las carpetas en orden (01 → 06). Las requests guardan variables automáticamente (customerId, accountNumber, etc.) para las siguientes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",              "value": "http://localhost:8080" },
+    { "key": "customerId",           "value": "" },
+    { "key": "customerId2",          "value": "" },
+    { "key": "accountNumber",        "value": "" },
+    { "key": "secondAccountNumber",  "value": "" },
+    { "key": "statusTestAccount",    "value": "" },
+    { "key": "lastDepositRef",       "value": "" },
+    { "key": "lastWithdrawRef",      "value": "" },
+    { "key": "lastTransferRef",      "value": "" }
+  ],
+  "item": [
+
+    {
+      "name": "01 - Clientes",
+      "item": [
+
+        {
+          "name": "Crear cliente (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('customerEmail',  'cliente' + ts + '@novobanco.com');",
+                  "pm.collectionVariables.set('customerDoc',    'DOC' + ts);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Retorna id', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.be.a('number');",
+                  "    pm.collectionVariables.set('customerId', body.id);",
+                  "});",
+                  "pm.test('Retorna email correcto', () => {",
+                  "    pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('customerEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api","v1","customers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana García\",\n  \"email\": \"{{customerEmail}}\",\n  \"documentNumber\": \"{{customerDoc}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Crear segundo cliente (para segunda cuenta)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now() + 1;",
+                  "pm.collectionVariables.set('customerEmail2', 'cliente2' + ts + '@novobanco.com');",
+                  "pm.collectionVariables.set('customerDoc2',   'DOC2' + ts);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('customerId2', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api","v1","customers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Ruiz\",\n  \"email\": \"{{customerEmail2}}\",\n  \"documentNumber\": \"{{customerDoc2}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Crear cliente - email duplicado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Contiene tipo de error', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api","v1","customers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Otro cliente\",\n  \"email\": \"{{customerEmail}}\",\n  \"documentNumber\": \"DOCUNICO999\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Crear cliente - email inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Contiene detalle de validación', () => {",
+                  "    pm.expect(pm.response.json().detail).to.include('email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api","v1","customers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\",\n  \"email\": \"no-es-un-email\",\n  \"documentNumber\": \"DOC123\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Crear cliente - campos vacíos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api","v1","customers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"\",\n  \"documentNumber\": \"\"\n}"
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "02 - Cuentas",
+      "item": [
+
+        {
+          "name": "Crear cuenta SAVINGS (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Cuenta activa con saldo cero', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('ACTIVE');",
+                  "    pm.expect(body.balance).to.eql(0);",
+                  "    pm.expect(body.accountNumber).to.match(/^\\d{10}$/);",
+                  "    pm.collectionVariables.set('accountNumber', body.accountNumber);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"type\": \"SAVINGS\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Crear cuenta CHECKING (segunda cuenta)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Tipo CHECKING', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.type).to.eql('CHECKING');",
+                  "    pm.collectionVariables.set('secondAccountNumber', body.accountNumber);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId2}},\n  \"type\": \"CHECKING\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Obtener cuenta por número (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Número de cuenta correcto', () => {",
+                  "    pm.expect(pm.response.json().accountNumber).to.eql(pm.collectionVariables.get('accountNumber'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}"] }
+          }
+        },
+
+        {
+          "name": "Obtener cuenta - no encontrada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('Error de cuenta no encontrada', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/9999999999", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","9999999999"] }
+          }
+        },
+
+        {
+          "name": "Obtener cuentas por cliente (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna lista no vacía', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array').with.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/customer/{{customerId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","customer","{{customerId}}"] }
+          }
+        },
+
+        {
+          "name": "Crear cuenta - cliente no existe (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 999999,\n  \"type\": \"SAVINGS\"\n}"
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "03 - Depósitos",
+      "item": [
+
+        {
+          "name": "Depósito exitoso (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('lastDepositRef', 'DEP-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Tipo DEPOSIT y estado SUCCESS', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.type).to.eql('DEPOSIT');",
+                  "    pm.expect(body.status).to.eql('SUCCESS');",
+                  "    pm.expect(body.amount).to.eql(1000);",
+                  "    pm.expect(body.balanceAfter).to.eql(1000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000.00,\n  \"description\": \"Depósito inicial\",\n  \"reference\": \"{{lastDepositRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Depósito - referencia duplicada (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Error transaccion-duplicada', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000.00,\n  \"description\": \"Depósito duplicado\",\n  \"reference\": \"{{lastDepositRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Depósito - monto cero (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 0.00,\n  \"description\": \"Monto inválido\",\n  \"reference\": \"DEP-ZERO\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Depósito - cuenta no encontrada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/9999999999/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","9999999999","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"description\": \"Test\",\n  \"reference\": \"DEP-NOTFOUND-001\"\n}"
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "04 - Retiros",
+      "item": [
+
+        {
+          "name": "Retiro exitoso (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('lastWithdrawRef', 'WD-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Tipo WITHDRAWAL y saldo actualizado', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.type).to.eql('WITHDRAWAL');",
+                  "    pm.expect(body.status).to.eql('SUCCESS');",
+                  "    pm.expect(body.amount).to.eql(300);",
+                  "    pm.expect(body.balanceAfter).to.eql(700);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/withdrawals", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","withdrawals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 300.00,\n  \"description\": \"Pago de servicios\",\n  \"reference\": \"{{lastWithdrawRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Retiro - referencia duplicada (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/withdrawals", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","withdrawals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 300.00,\n  \"description\": \"Retiro duplicado\",\n  \"reference\": \"{{lastWithdrawRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Retiro - fondos insuficientes (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error fondos-insuficientes', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/withdrawals", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","withdrawals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 999999.00,\n  \"description\": \"Retiro mayor al saldo\",\n  \"reference\": \"WD-INSUFFICIENT-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Retiro - monto negativo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/withdrawals", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","withdrawals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -50.00,\n  \"description\": \"Monto negativo\",\n  \"reference\": \"WD-NEGATIVE-001\"\n}"
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "05 - Transferencias",
+      "item": [
+
+        {
+          "name": "Depositar fondos en cuenta origen (setup)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('setupRef', 'SETUP-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000.00,\n  \"description\": \"Fondos para transferencia\",\n  \"reference\": \"{{setupRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia exitosa (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('lastTransferRef', 'TR-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Contiene debit y credit', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.debit.type).to.eql('TRANSFER_DEBIT');",
+                  "    pm.expect(body.credit.type).to.eql('TRANSFER_CREDIT');",
+                  "    pm.expect(body.debit.amount).to.eql(500);",
+                  "    pm.expect(body.credit.amount).to.eql(500);",
+                  "    pm.expect(body.debit.status).to.eql('SUCCESS');",
+                  "    pm.expect(body.credit.status).to.eql('SUCCESS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{accountNumber}}\",\n  \"targetAccountNumber\": \"{{secondAccountNumber}}\",\n  \"amount\": 500.00,\n  \"description\": \"Pago entre cuentas\",\n  \"reference\": \"{{lastTransferRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia - referencia duplicada (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{accountNumber}}\",\n  \"targetAccountNumber\": \"{{secondAccountNumber}}\",\n  \"amount\": 500.00,\n  \"description\": \"Transferencia duplicada\",\n  \"reference\": \"{{lastTransferRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia - fondos insuficientes (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error fondos-insuficientes', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{accountNumber}}\",\n  \"targetAccountNumber\": \"{{secondAccountNumber}}\",\n  \"amount\": 999999.00,\n  \"description\": \"Transferencia sin fondos\",\n  \"reference\": \"TR-INSUFFICIENT-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia - cuenta origen no encontrada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"9999999999\",\n  \"targetAccountNumber\": \"{{secondAccountNumber}}\",\n  \"amount\": 100.00,\n  \"description\": \"Cuenta origen inexistente\",\n  \"reference\": \"TR-NOTFOUND-001\"\n}"
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "06 - Historial de Transacciones",
+      "item": [
+
+        {
+          "name": "Historial - página 1 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Estructura de paginación correcta', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content).to.be.an('array');",
+                  "    pm.expect(body.page).to.eql(0);",
+                  "    pm.expect(body.size).to.eql(5);",
+                  "    pm.expect(body).to.have.property('totalElements');",
+                  "    pm.expect(body).to.have.property('totalPages');",
+                  "    pm.expect(body).to.have.property('hasNext');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/transactions?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","accounts","{{accountNumber}}","transactions"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Historial - página 2 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Página 1 correcta', () => {",
+                  "    pm.expect(pm.response.json().page).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/transactions?page=1&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","accounts","{{accountNumber}}","transactions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Historial - cuenta no encontrada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accounts/9999999999/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","accounts","9999999999","transactions"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "07 - Estado de Cuenta (Bloqueo / Cierre)",
+      "item": [
+
+        {
+          "name": "Crear cuenta para pruebas de estado (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Cuenta activa', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('ACTIVE');",
+                  "    pm.collectionVariables.set('statusTestAccount', body.accountNumber);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"type\": \"SAVINGS\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Depositar fondos (setup para retiro) (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('statusSetupRef', 'SETUP-STATUS-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500.00,\n  \"description\": \"Fondos para pruebas de estado\",\n  \"reference\": \"{{statusSetupRef}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Retiro con fondos insuficientes — transacción FAILED registrada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error fondos-insuficientes', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/withdrawals", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","withdrawals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000.00,\n  \"description\": \"Retiro mayor al saldo disponible\",\n  \"reference\": \"WD-INSUF-STATUS-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia con fondos insuficientes — transacción FAILED registrada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error fondos-insuficientes', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{statusTestAccount}}\",\n  \"targetAccountNumber\": \"{{accountNumber}}\",\n  \"amount\": 1000.00,\n  \"description\": \"Transferencia mayor al saldo disponible\",\n  \"reference\": \"TR-INSUF-STATUS-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Bloquear cuenta (PATCH → BLOCKED) (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado cambiado a BLOCKED', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql('BLOCKED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/status", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BLOCKED\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Depósito en cuenta bloqueada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error cuenta-inactiva', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/deposits", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","deposits"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"description\": \"No debe procesarse\",\n  \"reference\": \"DEP-BLOCKED-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Retiro en cuenta bloqueada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error cuenta-inactiva', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/withdrawals", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","withdrawals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50.00,\n  \"description\": \"No debe procesarse\",\n  \"reference\": \"WD-BLOCKED-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia desde cuenta bloqueada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error cuenta-inactiva', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{statusTestAccount}}\",\n  \"targetAccountNumber\": \"{{accountNumber}}\",\n  \"amount\": 50.00,\n  \"description\": \"No debe procesarse\",\n  \"reference\": \"TR-BLOCKED-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Transferencia hacia cuenta destino bloqueada — transacción FAILED registrada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error cuenta-destino-inactiva', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/transfers", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","transfers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{accountNumber}}\",\n  \"targetAccountNumber\": \"{{statusTestAccount}}\",\n  \"amount\": 100.00,\n  \"description\": \"Cuenta destino bloqueada\",\n  \"reference\": \"TR-DEST-BLOCKED-001\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Cerrar cuenta bloqueada (PATCH → CLOSED) (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado cambiado a CLOSED', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql('CLOSED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/status", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CLOSED\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Bloquear cuenta ya cerrada (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Error cuenta-inactiva al intentar bloquear cuenta cerrada', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{statusTestAccount}}/status", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{statusTestAccount}}","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BLOCKED\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "PATCH estado - status nulo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/status", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","{{accountNumber}}","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": null\n}"
+            }
+          }
+        },
+
+        {
+          "name": "PATCH estado - cuenta no encontrada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/9999999999/status", "host": ["{{baseUrl}}"], "path": ["api","v1","accounts","9999999999","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BLOCKED\"\n}"
+            }
+          }
+        }
+
+      ]
+    }
+
+  ]
+}

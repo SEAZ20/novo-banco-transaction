@@ -2,13 +2,17 @@ package com.novobanco.transaction.infrastructure.adapter.input.rest;
 
 import com.novobanco.transaction.application.port.input.CreateAccountUseCase;
 import com.novobanco.transaction.application.port.input.GetAccountUseCase;
+import com.novobanco.transaction.application.port.input.UpdateAccountStatusUseCase;
 import com.novobanco.transaction.application.port.input.command.CreateAccountCommand;
+import com.novobanco.transaction.application.port.input.command.UpdateAccountStatusCommand;
 import com.novobanco.transaction.infrastructure.adapter.input.rest.dto.request.CreateAccountRequest;
+import com.novobanco.transaction.infrastructure.adapter.input.rest.dto.request.UpdateAccountStatusRequest;
 import com.novobanco.transaction.infrastructure.adapter.input.rest.dto.response.AccountResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,6 +29,7 @@ public class AccountController {
 
     private final CreateAccountUseCase createAccountUseCase;
     private final GetAccountUseCase getAccountUseCase;
+    private final UpdateAccountStatusUseCase updateAccountStatusUseCase;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -43,5 +48,12 @@ public class AccountController {
         return getAccountUseCase.getByCustomerId(customerId).stream()
                 .map(AccountResponse::from)
                 .toList();
+    }
+
+    @PatchMapping("/{accountNumber}/status")
+    public AccountResponse updateStatus(@PathVariable String accountNumber,
+                                        @Valid @RequestBody UpdateAccountStatusRequest request) {
+        var command = new UpdateAccountStatusCommand(accountNumber, request.status());
+        return AccountResponse.from(updateAccountStatusUseCase.updateStatus(command));
     }
 }

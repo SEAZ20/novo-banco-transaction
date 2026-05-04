@@ -5,6 +5,7 @@ import com.novobanco.transaction.application.port.input.command.*;
 import com.novobanco.transaction.domain.exception.DuplicateTransactionException;
 import com.novobanco.transaction.domain.exception.InsufficientFundsException;
 import com.novobanco.transaction.domain.model.*;
+import com.novobanco.transaction.infrastructure.adapter.input.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
